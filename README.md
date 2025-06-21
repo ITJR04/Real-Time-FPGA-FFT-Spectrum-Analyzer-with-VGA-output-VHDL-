@@ -1,0 +1,2 @@
+# Real-Time-FPGA-FFT-Spectrum-Analyzer-with-VGA-output-VHDL-
+This project implements a real-time Fast Fourier Transform (FFT) Spectrum Analyzer on the ZedBoard Zynq-7000 SoC, using VHDL in the Vivado Design Suite. The analyzer captures a digitally generated signal, performs frequency analysis using a 128-point FFT, and displays the resulting frequency spectrum as vertical bars on a VGA display in real time.
