@@ -94,7 +94,7 @@ Uses Clocking Wizard for pixel clock generation
 # Output Image
 ![IMG_2775 (2)](https://github.com/user-attachments/assets/18d0f6c4-edbf-4bc3-a3de-1826d1bf6a8d)
 
-This is the output fro my monitor for the given sampled sine wave in the ROM table of signal capture
+This is the output from the monitor for the given sampled sine wave in the ROM table of signal capture
 
 ---
 
