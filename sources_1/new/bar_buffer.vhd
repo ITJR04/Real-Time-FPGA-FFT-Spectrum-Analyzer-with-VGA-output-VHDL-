@@ -25,6 +25,14 @@
 -- 
 ----------------------------------------------------------------------------------
 
+
+-- bar_buffer stores the processed FFT magnitudes after they’ve been scaled into
+-- 8-bit display heights. It holds 128 bins,and updates one bar per clock using
+-- a write-enable, address,
+-- and data interface. Internally it uses an array of 128 eight-bit values, and
+-- then flattens that into a 1024-bit bus so the VGA rendering module can access
+-- the full spectrum frame at all times. This decouples FFT output timing from VGA
+-- scan timing and lets the display continuously draw a stable spectrum.`
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 
@@ -37,36 +45,64 @@ use IEEE.NUMERIC_STD.ALL;
 --library UNISIM;
 --use UNISIM.VComponents.all;
 
+
+-- This module bridges between signal processing domain and grpahics-domain rednering
+
+
 entity bar_buffer is
   Port (
         clk     : in std_logic;
-        wr_en   : in std_logic; -- write enable 
+        reset   : in std_logic;
+        wr_en   : in std_logic; -- write enable from fft_mag output
         wr_addr : in integer range 0 to 127; -- write addr (used for which bin we want to write to)
-        wr_data : in std_logic_vector(7 downto 0); -- Scaled height: 0 to 255
-        bar_heights : out std_logic_vector(1023 downto 0) -- 128 * 8 = 1024 bits
+        -- unsigned(6 downto 0) better for natural binary vectors
+        wr_data : in std_logic_vector(7 downto 0); -- Scaled height: 0 to 255 truncated version of mag_out
+        bar_heights : out std_logic_vector(1023 downto 0) -- 128 * 8 = 1024 bits, falttended output containing all 128 stored bars with respective values
    );
 end bar_buffer;
 
 architecture Behavioral of bar_buffer is
     type bar_array is array(0 to 127) of std_logic_vector(7 downto 0); -- type made for the 128 bin heights
     signal bars : bar_array := (others =>(others => '0')); -- initialize the bar heights to all zero
+
+    -- function to flaten bars
+    function flatten_bars(b : bar_array) return std_logic_vector is
+        variable temp : std_logic_vector(1023 downto 0);
+    begin
+        for i in 0 to 127 loop
+            temp((i+1)*8 - 1 downto i*8) := b(i);
+        end loop;
+        return temp;
+    end function;
 begin
     
-    process(clk)
+    process(clk) -- this module does not write all 128 bars at once, it writes them sequentially, one 
+    -- bin at a time as the FFT mag sq results arrive
     begin
         if rising_edge(clk) then -- every clock rising edge
-            if wr_en = '1' then -- if our write enable is on means we are ready to assign values to the bin heights
+            if reset = '1' then -- if reset enabled, we clear the bars vector
+                bars <= (others => (others => '0'));
+            elsif wr_en = '1' then -- if mag_out has valid data for us we can assign the truncated value to the respective address computed in FFT_spectrum_top.vhd
+                                    -- in the top file the process is used to check for every time mag_out is valid during a rising edge
+                                    -- then check of the addr is at 127 (max for 1 frame) then next cycle is reset addr to 0 so next frame can be evaluated
+
                 bars(wr_addr) <= wr_data; -- we input the written data in the bin we want it in
             end if;
+            -- for wr_en = 0 nothing happens meaning VGA display keeps drwing the previous spectrum frame until newer data arrives
         end if;
     end process;
     
-  -- Process to flatten bars into wide output vector
-    process(bars)
-    begin
-        for i in 0 to 127 loop -- for loop to be able to assign the written data in bars into the outputted bar heights all together
-        bar_heights((i+1)*8 - 1 downto i*8) <= bars(i);
-        end loop;
-    end process;
     
+    bar_heights <= flatten_bars(bars);
 end Behavioral;
+
+-- Qualitative meaning:
+        -- bus is essentially a serialized version of the whole spectrum display state
+        -- very 8 bits is a bar height, all 128 bars = one completed spectrum frame descriptor
+        -- bar_hieights is not image memory in pixel sense, its more efficient than storing every screen pixel
+
+        -- if one bar is written per clokc, and need all bars updated, 28 writes per frame
+            
+-- separates FFt timing from VGA timing
+-- small resource usage
+-- scalable, 

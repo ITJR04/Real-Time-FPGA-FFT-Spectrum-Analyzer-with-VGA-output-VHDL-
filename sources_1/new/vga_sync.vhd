@@ -88,7 +88,10 @@ begin
         end if;
     end process;
 
-    -- Generate sync signals (active low)
+    -- Generate sync signals (move next line and frame) (active low)
+    -- H_display is visible area, front porch and back porch are blanking periods for time for monitor to stabilize
+    -- effectivlry acting as horizontal and vertical margins (time for beam to move to new line and time for
+    -- beam to move vertically ) (sync tells monotor to start ne line or frame)
     hsync <= '0' when (h_count >= H_DISPLAY + H_FRONT and h_count < H_DISPLAY + H_FRONT + H_SYNC) else '1'; 
     vsync <= '0' when (v_count >= V_DISPLAY + V_FRONT and v_count < V_DISPLAY + V_FRONT + V_SYNC) else '1';
 
